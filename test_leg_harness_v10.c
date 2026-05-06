@@ -146,9 +146,14 @@ void proto_input(struct ifnet *ifp, struct mbuf *m)
     struct ip *ip = mtod(m, struct ip *);
 
     printf("[%s] proto_input: ", s->drvr_name);
-    printf("%s → %s\n",
-        inet_ntoa(ip->ip_src),
-        inet_ntoa(ip->ip_dst));
+	
+	char src[INET_ADDRSTRLEN];
+	char dst[INET_ADDRSTRLEN];
+
+	inet_ntop(AF_INET, &ip->ip_src, src, sizeof(src));
+	inet_ntop(AF_INET, &ip->ip_dst, dst, sizeof(dst));
+
+	printf("%s → %s\n", src, dst);
 
     ifp->if_ibytes += m->m_pkthdr.len;
 }
@@ -163,9 +168,11 @@ int proto_output(struct ifnet *ifp, struct mbuf *m)
 
     struct ip *ip = mtod(m, struct ip *);
 
-    printf("[%s] proto_output: routing %s\n",
-        s->drvr_name,
-        inet_ntoa(ip->ip_dst));
+	char dst[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &ip->ip_dst, dst, sizeof(dst));
+
+	printf("[%s] proto_output: routing %s\n",
+		s->drvr_name, dst);
 
     dispatcher_forward(ifp, m);
 
