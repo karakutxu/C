@@ -1,15 +1,23 @@
 #!/bin/bash
 set -e
 
-ip netns exec ns1 ip tuntap add dev tun0 mode tun
-ip netns exec ns1 ip addr add 172.16.0.1/24 dev tun0
-ip netns exec ns1 ip link set tun0 up
+ip netns del ns1 2>/dev/null || true
+ip netns del ns2 2>/dev/null || true
 
-ip netns exec ns2 ip tuntap add dev tun1 mode tun
-ip netns exec ns2 ip addr add 172.16.0.2/24 dev tun1
-ip netns exec ns2 ip link set tun1 up
+ip netns add ns1
+ip netns add ns2
 
-ip netns exec ns1 ip route add 172.16.0.0/24 via 10.0.0.2
-ip netns exec ns2 ip route add 172.16.0.0/24 via 10.0.0.1
+ip link add veth0 type veth peer name veth1
 
-echo "TUN interfaces configured"
+ip link set veth0 netns ns1
+ip link set veth1 netns ns2
+
+ip netns exec ns1 ip addr add 10.0.0.1/24 dev veth0
+ip netns exec ns1 ip link set veth0 up
+ip netns exec ns1 ip link set lo up
+
+ip netns exec ns2 ip addr add 10.0.0.2/24 dev veth1
+ip netns exec ns2 ip link set veth1 up
+ip netns exec ns2 ip link set lo up
+
+echo "Namespaces ready"
