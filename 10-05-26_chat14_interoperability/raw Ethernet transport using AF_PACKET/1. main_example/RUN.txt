@@ -1,0 +1,61 @@
+Build
+gcc -O2 proto_demo.c -o proto_demo
+Determine MAC addresses
+
+On Host A:
+
+ip link show eth0
+
+On Host B:
+
+ip link show eth0
+
+Record the MAC addresses.
+
+Run
+Host B first
+sudo bash setup_hostB.sh
+
+
+sudo ./proto_demo rx tun0 eth0 dummy
+Host A
+
+Replace aa:bb:cc:dd:ee:ff with Host B MAC.
+
+sudo bash setup_hostA.sh
+
+
+sudo ./proto_demo tx tun0 eth0 aa:bb:cc:dd:ee:ff
+Test
+
+From Host A:
+
+ping 10.20.0.1
+
+Expected:
+
+Host A:
+
+TX IP 10.10.0.1 -> 10.20.0.1 len=84
+
+Host B:
+
+RX IP 10.10.0.1 -> 10.20.0.1 len=84
+
+The packet flow is:
+
+Linux IP stack
+    ↓
+read(tun0)
+    ↓
+userspace daemon
+    ↓
+raw Ethernet frame
+    ↓
+network
+    ↓
+userspace daemon
+    ↓
+write(tun0)
+    ↓
+Linux IP stack
