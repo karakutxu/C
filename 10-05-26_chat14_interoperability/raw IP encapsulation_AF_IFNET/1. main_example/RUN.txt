@@ -1,0 +1,122 @@
+Correct architecture
+Host A
+underlay:
+  eth0 = 192.168.1.10
+
+overlay:
+  tun0 = 10.10.0.1
+Host B
+underlay:
+  eth0 = 192.168.1.20
+
+overlay:
+  tun0 = 10.20.0.1
+Packet flow
+ping 10.20.0.1
+    ↓
+kernel routes into tun0
+    ↓
+proto_demo reads packet
+    ↓
+UDP sendto(192.168.1.20)
+    ↓
+network
+    ↓
+UDP recvfrom()
+    ↓
+write(tun0)
+    ↓
+kernel receives packet
+
+This is now a real overlay network.
+
+VERY important point
+
+Your original scripts:
+
+ip route add 10.20.0.0/24 dev tun0
+
+remain CORRECT.
+
+Because:
+
+the kernel must route overlay traffic into the tunnel
+
+That part does NOT change.
+
+Updated setup scripts
+
+These assume:
+
+the two hosts can already ping each other over normal Ethernet/IP
+using:
+192.168.1.10
+192.168.1.20
+
+Replace those with your actual host IPs.
+
+******************************
+
+
+compile
+gcc proto_demo.c -o proto_demo
+Run on Host B
+sudo ./setup_hostB.sh
+
+then:
+
+sudo ./proto_demo rx tun0 dummy
+Run on Host A
+sudo ./setup_hostA.sh
+
+then:
+
+sudo ./proto_demo tx tun0 192.168.1.20
+
+IMPORTANT:
+
+192.168.1.20 = UNDERLAY IP
+
+NOT:
+
+10.20.0.1
+Test
+
+On Host A:
+
+ping 10.20.0.1
+
+Expected:
+
+TX: 10.10.0.1 -> 10.20.0.1 len=84
+
+On Host B:
+
+RX: 10.10.0.1 -> 10.20.0.1 len=84
+
+and ping replies should work.
+
+This is now VERY close to production architecture
+
+This resembles:
+
+OpenVPN
+WireGuard
+SD-WAN overlays
+your legacy system
+
+far more closely than the AF_PACKET version.
+
+MOST IMPORTANT architectural conclusion
+
+Your legacy system now appears to be:
+
+overlay routing system over IP transport
+
+NOT:
+
+Ethernet replacement
+Layer-2 forwarding
+MAC switching
+
+That is a major simplification for your Linux port.
