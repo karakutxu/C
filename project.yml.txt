@@ -1,0 +1,76 @@
+:project:
+  :build_root: build
+  :test_file_prefix: test_
+  :use_exceptions: FALSE
+  :use_test_preprocessor: TRUE
+  :which_ceedling: gem
+  :ceedling_version: 0.31.1
+
+:paths:
+  :test:
+    - test/**
+  :source:
+    - src/**
+  :support:
+    - test/support
+    - test/mocks
+  :include:
+    - src
+    - include
+    - test/support
+    - test/mocks
+
+:defines:
+
+  :test:
+    - TEST
+    - UNITY_INCLUDE_DOUBLE
+    - UNITY_SUPPORT_64
+
+:cmock:
+  :mock_prefix: mock_
+  :when_no_prototypes: warn
+  :plugins:
+    - ignore
+    - callback
+    - return_thru_ptr
+
+:plugins:
+  :enabled:
+    - stdout_pretty_tests_report
+    - module_generator
+    - gcov
+
+:gcov:
+
+  :reports:
+    - HtmlBasic
+    - Text
+
+:tools:
+
+  :test_compiler:
+    :arguments:
+      - -Wall
+      - -Wextra
+      - -Werror
+      - -std=gnu11
+      - -g
+      - -O0
+
+  :test_linker:
+    :arguments:
+      - -pthread
+
+:environment:
+
+  - :gcov:
+      :test_compiler:
+        :arguments:
+          - -fprofile-arcs
+          - -ftest-coverage
+
+      :test_linker:
+        :arguments:
+          - -fprofile-arcs
+          - -ftest-coverage
