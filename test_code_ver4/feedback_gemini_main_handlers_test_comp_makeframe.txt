@@ -1,0 +1,132 @@
+oduction code (prodrv_handlers.c), here are the core bugs, runtime crashes, and compilation errors you are encountering—along with their fixes.
+1. Crash / Null Pointer Dereference in handle_MSG_PREPARE_FRAME
+The Issue:
+
+In prodrv_handlers.c, handle_MSG_PREPARE_FRAME attempts to clear ctx->config.wchunk and ctx->config.chunksize:
+C
+
+memset(&ctx->config.wchunk, 0, sizeof(ctx->config.wchunk));
+memset(&ctx->config.chunksize, 0, sizeof(ctx->config.chunksize));
+
+if (ctx->config.wchunk != NULL)
+{
+    memset(ctx->config.wchunk, 0, sizeof(*ctx->config.wchunk));
+}
+
+If ctx->config.wchunk or ctx->config.chunksize are pointers (or if they are NULL), calling memset directly on &ctx->config.wchunk before checking for NULL causes a segmentation fault. Furthermore, ctx->config.chunksize->N is accessed later without validating that chunksize points to valid memory.
+Fix:
+
+Initialize wchunk and chunksize properly in your test setup fixture (component_setup()), or add proper null guards in your mock setup:
+C
+
+// In test fixture / setup:
+static struct TX_LAYER_2_CHUNK g_test_wchunk;
+static struct TX_L2_CHUNK_SIZE g_test_chunksize;
+
+g_fixture.ctx.config.wchunk = &g_test_wchunk;
+g_fixture.ctx.config.chunksize = &g_test_chunksize;
+
+2. Uninitialized Statistics Pointers (work_pf)
+The Issue:
+
+Inside handle_MSG_PREPARE_FRAME, the code attempts to record metrics using s->work_pf:
+C
+
+s->work_pf->frames_prepared++;
+
+In init_protostatics (from prodrv_main.c), s->work_pf and s->full_pf are never initialized. They are NULL by default when calloc runs. dereferencing s->work_pf leads to an instant Segmentation Fault.
+Fix:
+
+In init_protostatics (or inside setUp() for the unit test), bind work_pf and full_pf to the internal array s->pf:
+C
+
+struct proto_statics *init_protostatics(struct ifnet *ifp, proto_context_t *ctx)
+{
+    struct proto_statics *s = calloc(1, sizeof(*s));
+    if (!s) exit(1);
+
+    // FIX: Initialize statistics pointers
+    s->work_pf = &s->pf[0];
+    s->full_pf = &s->pf[1];
+
+    // ... rest of init
+    return s;
+}
+
+3. Double-Increment of chunks_sent Statistic
+The Issue:
+
+In prodrv_handlers.c, s->work_pf->chunks_sent++ is called twice in handle_MSG_PREPARE_FRAME:
+
+    Right after calling write_chunk2CSH(...).
+
+    Right after sending MSG_TX_START over socket ctx->csh_evt_sock_fd.
+
+In your test test_prepare_frame_statistics_incremented:
+C
+
+TEST_ASSERT_EQUAL(1, ps->work_pf->chunks_sent);
+
+This test will fail with Expected 1 Was 2.
+Fix:
+
+Remove one of the duplicate increment calls in prodrv_handlers.c, or update your test assertion to reflect the intended increment logic.
+4. Typo in hcs_messages.h Enum
+The Issue:
+
+In hcs_messages.h, there is a missing comma:
+C
+
+typedef enum
+{
+    MSG_UNKNOWN,
+    MSG_INIT_PME,
+    MSG_INIT_AUTH,
+    MSG_SCH_TIME_OFFSET    <-- MISSING COMMA HERE
+    MSG_INIT_SLOTMGR,
+    ...
+
+Fix:
+
+Add a comma after MSG_SCH_TIME_OFFSET,.
+5. Type Mismatch in dispatch_message Signature
+The Issue:
+
+In prodrv_main.c:
+C
+
+void dispatch_message(..., struct protoman_stats *pms, ...)
+
+In protomanstatics_ng.h:
+C
+
+typedef struct protoman_statics { ... } protoman_stats;
+
+However, in prodrv_main.c, pms is passed as struct protoman_statics *pms inside proto_process_one_iteracion. Depending on your compiler strictness, this produces a implicit pointer conversion warning/error (struct protoman_stats * vs struct protoman_statics *).
+Fix:
+
+Standardize on struct protoman_statics *pms across all function parameters in prodrv_main.c.
+Summary Checklist for component_setup()
+
+Ensure your common test setup fixture (g_fixture) initializes all pointers expected by handle_MSG_PREPARE_FRAME:
+C
+
+void component_setup(void)
+{
+    memset(&g_fixture, 0, sizeof(g_fixture));
+
+    // 1. Allocate / attach protocol statics
+    g_fixture.s = calloc(1, sizeof(struct proto_statics));
+    g_fixture.s->work_pf = &g_fixture.s->pf[0];
+    g_fixture.s->full_pf = &g_fixture.s->pf[1];
+
+    // 2. Attach ifnet
+    g_fixture.ifp = calloc(1, sizeof(struct ifnet));
+    g_fixture.ifp->p = g_fixture.s;
+    g_fixture.s->ifp = g_fixture.ifp;
+
+    // 3. Attach frame params & chunk structs
+    g_fixture.ctx.config.frame_params = calloc(1, sizeof(struct TX_L2_FRAME_PARAMS));
+    g_fixture.ctx.config.wchunk = calloc(1, sizeof(struct TX_LAYER_2_CHUNK));
+    g_fixture.ctx.config.chunksize = calloc(1, sizeof(struct TX_L2_CHUNK_SIZE));
+}
