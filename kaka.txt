@@ -1,0 +1,87 @@
+From the read_VMEchunk() code you've shared previously, the answer is:
+
+Almost nowhere. The protocol expects most fields arriving from the Layer-2 chunk to already be in host byte order. The only place you should perform host/network byte-order conversion is when a packet is about to enter or leave the IP stack.
+
+1. Reading the Layer-2 chunk (No conversion)
+
+Everything read using GET_N_CHARS() is part of the proprietary Halo Layer-2 protocol:
+
+GET_N_CHARS((char *)&s->frame_hdr,
+            sizeof(struct L2_frame_hdr));
+
+and
+
+pkttype = *(u_int_2 *)&packet[0];
+pktlen  = *(u_int_2 *)&packet[2];
+
+These values are not IP headers; they are protocol-specific metadata. They should remain in whatever byte order the TX side wrote them. If both TX and RX now run on the same little-endian Linux host, no conversion is needed.
+
+2. Before calling huncompress()
+
+Again, no conversion should be necessary.
+
+The compressed packet format (HC_NEW_REF, HC_TYPE_II_REF, etc.) is an internal protocol format. huncompress() expects exactly the same representation that hcompress() produced.
+
+3. After huncompress() (This is the important place)
+
+After
+
+ret = huncompress(..., (char **)&upacket, &pktlen);
+
+upacket contains a reconstructed IP packet.
+
+When you do
+
+m = m_devget(upacket, pktlen, 0, ifp, 0);
+proto_input(ifp, m);
+
+the IP header inside upacket must already be in network byte order, because the Linux networking stack expects packets exactly as they would arrive from a NIC.
+
+So if your ported huncompress() reconstructs fields like
+
+ip->ip_len
+ip->ip_id
+ip->ip_off
+udp->uh_ulen
+udp->uh_sport
+udp->uh_dport
+
+using host-endian values, that's where you should apply:
+
+ip->ip_len = htons(ip->ip_len);
+ip->ip_id  = htons(ip->ip_id);
+ip->ip_off = htons(ip->ip_off);
+
+udp->uh_sport = htons(udp->uh_sport);
+udp->uh_dport = htons(udp->uh_dport);
+udp->uh_ulen  = htons(udp->uh_ulen);
+
+Ideally this happens inside huncompress() (or immediately before proto_input()), not throughout read_VMEchunk().
+
+4. Promiscuous/raw mode
+
+This code:
+
+ip = (struct ip *)data_start;
+m = m_devget(data_start, ip->ip_len, 0, ifp, 0);
+
+is different because it is handling a raw IP packet. Here ip->ip_len comes from the packet itself and is therefore in network byte order.
+
+On LynxOS, the stack may have defined ip_len in host order, but on Linux you'll almost certainly need:
+
+uint16_t len = ntohs(ip->ip_len);
+m = m_devget(data_start, len, 0, ifp, 0);
+
+Otherwise packets will appear to have absurd lengths (e.g. 0x4500 interpreted incorrectly).
+
+My recommendation
+
+The cleanest place to handle byte order is not inside read_VMEchunk() itself, but at the interfaces:
+
+TX (make_L2frame/hcompress): convert host → network when constructing IP/UDP headers.
+RX (huncompress): reconstruct IP/UDP headers in network order before handing them to the IP stack.
+Raw packet path in read_VMEchunk(): use ntohs(ip->ip_len) when reading the length from an IP header.
+
+That keeps all the Layer-2 protocol processing in native host order and only converts where packets cross the boundary to or from the IP stack.
+
+One question that would help narrow this down: In your Linux port, is proto_input() passing the mbuf into the Linux kernel networking stack, or into a user-space emulated IP stack? That determines exactly where the conversions should occur.
