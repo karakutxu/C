@@ -1,0 +1,31 @@
+ased on the style we've developed for the other COL reports, I would keep the summary focused on the complementary behaviour of the terrestrial and A2G layers rather than describing each band individually.
+
+Executive Summary
+
+Based on the measurements presented in this document, the combined terrestrial (Bands 3 and 20) and Air-to-Ground (Band 40) network provides operationally acceptable coverage across the tested flight profile. The terrestrial layers maintain strong signal strength and high call success rates, although signal quality deteriorates with altitude. Band 40 provides the primary airborne coverage layer, maintaining good RF performance above 500 ft and complementing the terrestrial network. A small number of isolated MOS and CSR failures remain across the altitude profile.
+
+1. Overall Site Coverage Assessment
+1.1 RF Viewpoint
+Bands 3 and 20 maintain strong RSRP throughout the vertical profile, indicating good coverage availability.
+Signal quality (RSRQ and SINR) for the terrestrial layers degrades progressively with altitude, with Band 3 exhibiting poor SINR across much of the profile and Band 20 showing a gradual reduction above approximately 300–400 ft.
+Multiple PCIs are detected on both terrestrial bands, reflecting the extensive visibility of surrounding sites at altitude.
+Band 40 provides predominantly good RSRP, RSRQ and SINR above its intended operating altitude, with only a small proportion of poor RF samples below approximately 500–800 ft.
+Overall, the terrestrial and A2G layers provide complementary RF coverage across the tested altitude range.
+1.2 Operational Viewpoint
+MOS is predominantly good across all three bands, with only a small number of isolated poor samples.
+Call Success Rate is excellent across all bands, with only isolated failures.
+Band 3 and Band 20 provide the primary operational service at lower altitudes, while Band 40 provides effective airborne coverage above approximately 500 ft.
+Although terrestrial signal quality deteriorates with altitude, the complementary operation of the Band 40 layer maintains operationally acceptable service throughout the flight profile.
+2. Conclusions
+The combined terrestrial and A2G network provides operationally acceptable airborne coverage across the tested altitude range.
+Bands 3 and 20 maintain strong received signal strength but exhibit progressively poorer signal quality with increasing altitude.
+Band 40 maintains good RF performance throughout its intended airborne operating region and complements the terrestrial layers effectively.
+Multiple detected PCIs indicate a complex radio environment but do not significantly impact overall operational performance.
+The remaining MOS and CSR failures are limited and do not indicate any systematic coverage deficiency.
+3. Recommendations
+Continue using the complementary terrestrial and A2G network architecture for airborne service provision.
+Investigate the isolated MOS and CSR failures to determine whether they are related to mobility, local RF conditions or network configuration.
+Monitor terrestrial signal quality degradation with altitude during future trials to ensure seamless transition between the ground and A2G layers.
+Repeat validation following any network optimisation or A2G site changes to confirm continued operational performance.
+
+This assessment is noticeably more positive than the Earls Colne report. The key message is not that one band outperforms another, but that the network behaves as intended: the terrestrial layers provide strong low-altitude coverage, Band 40 provides effective airborne coverage, and together they deliver good operational performance across the vertical profile.
